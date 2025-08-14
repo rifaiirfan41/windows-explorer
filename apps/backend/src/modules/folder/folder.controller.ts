@@ -31,7 +31,12 @@ export const folderRoutes = new Elysia({ prefix: '/folders' })
   .post('/', ({ body, set }) => {
     set.status = 201
     return folderService.create(body.name, body.parentId ?? null)
-  }, { body: t.Object({ name: t.String(), parentId: t.Optional(t.String()) }) })
+  }, {
+    body: t.Object({
+      name: t.String(),
+      parentId: t.Optional(t.Nullable(t.String()))
+    })
+  })
 
   .patch('/:id', ({ params, body }) => folderService.rename(params.id, body.name), {
     params: t.Object({ id: t.String() }),

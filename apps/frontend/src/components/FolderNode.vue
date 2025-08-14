@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick , onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
-import { TrashIcon } from '@heroicons/vue/24/solid'
+import { TrashIcon, ChevronDownIcon, ChevronRightIcon} from '@heroicons/vue/24/solid'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3002'
 
@@ -91,9 +91,17 @@ onUnmounted(() => window.removeEventListener('folder-updated', handleExternalUpd
   <li>
     <div class="node-row" @click="toggle">
       <span class="caret">
-        <template v-if="node.hasChildren">{{ open ? '▼' : '▶' }}</template>
-        <template v-else>•</template>
+        <template v-if="node.hasChildren">
+          <component
+            :is="open ? ChevronDownIcon : ChevronRightIcon"
+            class="w-4 h-4 inline-block"
+          />
+        </template>
+        <template v-else>
+          <MinusIcon class="w-3 h-3 inline-block" />
+        </template>
       </span>
+
 
       <!-- Nama / editor inline -->
       <span
