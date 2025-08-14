@@ -1,20 +1,43 @@
-import { Elysia } from 'elysia';
-// import { PrismaClient } from '@prisma/client';
-import cors from '@elysiajs/cors';
+import { Elysia } from 'elysia'
+import cors from '@elysiajs/cors'
 import { PrismaClient } from '../generated/prisma';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient()
 const app = new Elysia()
-  .use(cors())
-  .get('/folders', async () => {
-    return prisma.folder.findMany({ include: { children: true } });
-  })
-  .get('/folders/:id', async ({ params }) => {
-    return prisma.folder.findUnique({
-      where: { id: params.id },
-      include: { children: true, files: true }
-    });
-  });
+  .use(cors({ origin: ['http://localhost:5173'] }))
 
-app.listen(3002);
-console.log('Backend running on http://localhost:3002');
+// GET all folders (flat) – buat kebutuhan lain
+app.get('/folders', () => prisma.folder.findMany())
+
+// GET detail + children + files
+app.get('/folders/:id', ({ params }) =>
+  prisma.folder.findUnique({
+    where: { id: params.id },
+    include: { children: true, files: true }
+  })
+)
+
+// GET tree sekali query (bangun nested di memori)
+app.get('/tree', async () => {
+  const all = await prisma.folder.findMany()
+  const byParent: Record<string, any[]> = {}
+  all.forEach(f => {
+    const key = f.parentId ?? 'root'
+    ;(byParent[key] ??= []).push({ ...f, children: [] })
+  })
+  const index: Record<string, any> = {}
+  ;(byParent['root'] ?? []).forEach((n) => index[n.id] = n)
+  all.forEach(f => (index[f.id] ??= { ...f, children: [] }))
+
+  all.forEach(f => {
+    if (f.parentId) {
+      const parent = index[f.parentId]
+      const node   = index[f.id]
+      parent?.children?.push(node)
+    }
+  })
+  return byParent['root'] ?? []
+})
+
+app.listen(3002)
+console.log('Backend running on http://localhost:3002')
