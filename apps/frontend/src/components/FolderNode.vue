@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick , onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { TrashIcon } from '@heroicons/vue/24/solid'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3002'
 
-type LiteNode = { id: string; name: string; hasChildren?: boolean }
+type LiteNode = { id: string; name: string; hasChildren?: boolean; parentId?: string | null }
 type ChildResp = { items: LiteNode[]; nextCursor: string | null }
 
 const props = defineProps<{
   node: LiteNode
   onSelect: (id: string) => void
-  onRefresh: (opts: { deletedId?: string; updatedId?: string }) => Promise<void> | void
+  onRefresh: (opts: { deletedId?: string; updatedId?: string; parentId?: string | null }) => Promise<void> | void
 }>()
 
 const open = ref(false)
@@ -31,7 +31,7 @@ async function loadChildren(cursor?: string) {
       params: { limit: 20, cursor }
     })
     if (!children.value) children.value = []
-    children.value.push(...data.items)
+    children.value.push(...data.items.map(it => ({ ...it, parentId: props.node.id })))
     nextCursor.value = data.nextCursor
   } finally { loading.value = false }
 }
@@ -57,8 +57,9 @@ async function commitEdit() {
   const newName = editName.value.trim()
   if (!newName || newName === props.node.name) { editing.value = false; return }
   await axios.patch(`${API_BASE}/v1/folders/${props.node.id}`, { name: newName })
+  ;(props.node as any).name = newName
   editing.value = false
-  await props.onRefresh({ updatedId: props.node.id })
+  await props.onRefresh({ updatedId: props.node.id, parentId: props.node.parentId ?? null })
 }
 
 function cancelEdit() {
@@ -70,8 +71,20 @@ async function deleteNode(e?: MouseEvent) {
   if (e) e.stopPropagation()
   if (!confirm(`Delete "${props.node.name}" ?`)) return
   await axios.delete(`${API_BASE}/v1/folders/${props.node.id}`)
-  await props.onRefresh({ deletedId: props.node.id })
+  await props.onRefresh({ deletedId: props.node.id, parentId: props.node.parentId ?? null })
 }
+
+function handleExternalUpdate(e: Event) {
+  const detail = (e as CustomEvent<{ parentId: string | null }>).detail
+  if (detail.parentId === props.node.id) {
+    children.value = null
+    nextCursor.value = null
+    if (open.value) loadChildren()
+  }
+}
+
+onMounted(() => window.addEventListener('folder-updated', handleExternalUpdate))
+onUnmounted(() => window.removeEventListener('folder-updated', handleExternalUpdate))
 </script>
 
 <template>

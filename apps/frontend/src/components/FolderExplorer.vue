@@ -6,7 +6,7 @@ import { PlusIcon } from '@heroicons/vue/24/solid'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3002'
 
-type LiteNode = { id: string; name: string; hasChildren?: boolean }
+type LiteNode = { id: string; name: string; hasChildren?: boolean; parentId?: string | null }
 type FileT    = { id: string; name: string }
 
 const roots     = ref<LiteNode[]>([])
@@ -20,7 +20,7 @@ async function loadRoots() {
   loading.value = true; error.value = null
   try {
     const { data } = await axios.get<LiteNode[]>(`${API_BASE}/v1/folders/tree`)
-    roots.value = data
+    roots.value = data.map(r => ({ ...r, parentId: null }))
   } catch (e: any) {
     error.value = e?.message ?? 'Failed to load roots'
   } finally { loading.value = false }
@@ -55,19 +55,22 @@ async function createFolder() {
   const name = prompt('Folder name?')
   if (!name) return
   const parentId = selected.value?.id ?? null
-  await axios.post(`${API_BASE}/v1/folders`, { name, parentId })
-  await loadRoots()
-  if (parentId) await onSelect(parentId)
+  const { data } = await axios.post(`${API_BASE}/v1/folders`, { name, parentId })
+  // reload tree & panel kanan melalui afterChange dan beri tahu parent utk refresh children
+  await afterChange({ updatedId: data.id, parentId })
 }
 
 // Dipanggil node setelah rename/delete agar refresh tree & panel kanan
-async function afterChange(opts: { deletedId?: string; updatedId?: string }) {
+async function afterChange(opts: { deletedId?: string; updatedId?: string; parentId?: string | null }) {
   await loadRoots()
   if (opts.deletedId && selected.value?.id === opts.deletedId) {
     selected.value = null
     files.value = []
   } else if (selected.value) {
     await onSelect(selected.value.id)
+  }
+  if (opts.parentId) {
+    window.dispatchEvent(new CustomEvent('folder-updated', { detail: { parentId: opts.parentId } }))
   }
 }
 </script>
