@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 import cors from '@elysiajs/cors'
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient()
 const app = new Elysia()
@@ -21,15 +21,15 @@ app.get('/folders/:id', ({ params }) =>
 app.get('/tree', async () => {
   const all = await prisma.folder.findMany()
   const byParent: Record<string, any[]> = {}
-  all.forEach(f => {
+  all.forEach((f: any) => {
     const key = f.parentId ?? 'root'
     ;(byParent[key] ??= []).push({ ...f, children: [] })
   })
   const index: Record<string, any> = {}
-  ;(byParent['root'] ?? []).forEach((n) => index[n.id] = n)
-  all.forEach(f => (index[f.id] ??= { ...f, children: [] }))
+  ;(byParent['root'] ?? []).forEach((n: any) => index[n.id] = n)
+  all.forEach((f: any) => (index[f.id] ??= { ...f, children: [] }))
 
-  all.forEach(f => {
+  all.forEach((f: any) => {
     if (f.parentId) {
       const parent = index[f.parentId]
       const node   = index[f.id]

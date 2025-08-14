@@ -1,4 +1,5 @@
-import { folderRepo } from './folder.repo'
+import { folderRepo, type FileRecord } from './folder.repo'
+import { mkdir } from 'fs/promises'
 
 const toLite = (f: any) => ({
   id: f.id,
@@ -19,9 +20,13 @@ export const folderService = {
     return { items, nextCursor }
   },
 
-  async files(folderId: string, limit: number, cursor?: string) {
+  async files(
+    folderId: string,
+    limit: number,
+    cursor?: string
+  ): Promise<{ items: FileRecord[]; nextCursor: string | null }> {
     const rows = await folderRepo.filesPaged(folderId, limit, cursor)
-    const nextCursor = rows.length === limit ? rows[rows.length - 1].id : null
+    const nextCursor = rows.length === limit ? rows[rows.length - 1]?.id ?? null : null
     return { items: rows, nextCursor }
   },
 
@@ -37,5 +42,10 @@ export const folderService = {
   },
   remove(id: string) {
     return folderRepo.remove(id)
-  }
+  },
+  async addFile(folderId: string, file: globalThis.File): Promise<FileRecord> {
+    await mkdir('uploads', { recursive: true })
+    await Bun.write(`uploads/${file.name}`, file)
+    return folderRepo.addFile(folderId, file.name)
+  },
 }

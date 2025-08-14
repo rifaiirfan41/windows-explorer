@@ -15,6 +15,7 @@ const files     = ref<FileT[]>([])
 const nextFiles = ref<string | null>(null)
 const loading   = ref(false)
 const error     = ref<string | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 
 async function loadRoots() {
   loading.value = true; error.value = null
@@ -73,6 +74,23 @@ async function afterChange(opts: { deletedId?: string; updatedId?: string; paren
     window.dispatchEvent(new CustomEvent('folder-updated', { detail: { parentId: opts.parentId } }))
   }
 }
+
+function triggerFile() {
+  if (!selected.value) return
+  fileInput.value?.click()
+}
+
+async function onFileChange(e: Event) {
+  if (!selected.value) return
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  const fd = new FormData()
+  fd.append('file', file)
+  await axios.post(`${API_BASE}/v1/folders/${selected.value.id}/files`, fd)
+  target.value = ''
+  await onSelect(selected.value.id)
+}
 </script>
 
 <template>
@@ -109,7 +127,13 @@ async function afterChange(opts: { deletedId?: string; updatedId?: string; paren
         <li v-for="sub in selected.children ?? []" :key="sub.id">{{ sub.name }}</li>
       </ul>
 
-      <h3 class="mt">Files</h3>
+       <div class="right-header mt">
+        <h3>Files</h3>
+        <button class="add-btn" @click="triggerFile" title="Upload file">
+          <PlusIcon class="icon" />
+        </button>
+        <input type="file" ref="fileInput" style="display:none" @change="onFileChange" />
+      </div>
       <ul v-if="files.length" class="list">
         <li v-for="f in files" :key="f.id">{{ f.name }}</li>
       </ul>

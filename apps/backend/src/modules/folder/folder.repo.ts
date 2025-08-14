@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
-
+export type FileRecord = { id: string; name: string; folderId: string }
 export const folderRepo = {
   roots: () =>
     prisma.folder.findMany({
@@ -25,13 +25,15 @@ export const folderRepo = {
       include: { children: true, files: true }
     }),
 
-  filesPaged: (folderId: string, limit: number, cursor?: string) =>
+  filesPaged: (folderId: string, limit: number, cursor?: string): Promise<FileRecord[]> =>
     prisma.file.findMany({
       where: { folderId },
       orderBy: { id: 'asc' },
       take: limit,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {})
-    }),
+    }) as unknown as Promise<FileRecord[]>,
+addFile: (folderId: string, name: string): Promise<FileRecord> =>
+    prisma.file.create({ data: { name, folderId } }) as unknown as Promise<FileRecord>,
 
   create: (name: string, parentId?: string | null) =>
     prisma.folder.create({ data: { name, parentId: parentId ?? null } }),
@@ -43,6 +45,6 @@ export const folderRepo = {
     await prisma.file.deleteMany({ where: { folderId: id } })
     await prisma.folder.deleteMany({ where: { parentId: id } })
     return prisma.folder.delete({ where: { id } })
-  }
+  },
 
 }

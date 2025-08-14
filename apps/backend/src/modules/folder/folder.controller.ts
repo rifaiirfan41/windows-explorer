@@ -46,3 +46,19 @@ export const folderRoutes = new Elysia({ prefix: '/folders' })
   .delete('/:id', ({ params }) => folderService.remove(params.id), {
     params: t.Object({ id: t.String() })
   })
+
+.post(
+    '/:id/files',
+    async ({ params, body, set }) => {
+      const file = body.file as File
+      set.status = 201
+      return folderService.addFile(params.id, file)
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({ file: t.File() })
+    }
+  )
+
+  
+
